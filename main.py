@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify
 import requests
+import os
 
 app = Flask(__name__)
 
-API_KEY = 1006247776433
+API_KEY = "AIzaSyBhbZufwycOVzlwcIQYjGY0cSX4Ewim8Cs"
 
 def llamar_a_gemini(texto_usuario):
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" + API_KEY
@@ -33,4 +34,5 @@ def webhook():
     return jsonify({"fulfillmentText": respuesta})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
