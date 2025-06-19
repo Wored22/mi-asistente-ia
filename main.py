@@ -4,12 +4,18 @@ import os
 
 app = Flask(__name__)
 
-# Clave API de Gemini (sustituye esta por la tuya si es necesario)
-API_KEY = "TU_CLAVE_API_AQUI"
+# Clave API de Gemini, se obtiene desde variables de entorno
+API_KEY = os.environ.get("GEMINI_API_KEY")
+
+# Verifica si la clave existe, si no lanza un error
+if not API_KEY:
+    raise ValueError("❌ No se encontró la variable de entorno 'GEMINI_API_KEY'. Configúrala en Render.")
+
+# URL actualizada para Gemini 2.0 Flash
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
 
 # Función que hace la llamada a Gemini
 def llamar_a_gemini(texto_usuario):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={API_KEY}"
     data = {
         "contents": [
             {
@@ -19,12 +25,11 @@ def llamar_a_gemini(texto_usuario):
     }
 
     try:
-        response = requests.post(url, json=data)
-        response.raise_for_status()  # Lanza error si el código HTTP no es 200
+        response = requests.post(GEMINI_URL, json=data)
+        response.raise_for_status()
         respuesta = response.json()
         print("🔹 Respuesta cruda de Gemini:", respuesta)
         return respuesta['candidates'][0]['content']['parts'][0]['text']
-
     except requests.exceptions.RequestException as e:
         print("❌ Error de conexión o respuesta:", e)
         try:
@@ -32,30 +37,27 @@ def llamar_a_gemini(texto_usuario):
         except:
             print("❌ No se pudo acceder a response.text")
         return "Lo siento, hubo un error de conexión con Gemini."
-
     except Exception as e:
         print("❌ Error inesperado:", e)
         return "Lo siento, ocurrió un error inesperado."
 
-# Ruta raíz para probar que el servidor funciona
-@app.route("/")
+# Ruta raíz simple
+@app.route("/", methods=["GET"])
 def home():
     return "Servidor de Mi IA funcionando 🚀"
 
-# Webhook para Dialogflow o Postman
+# Webhook para Dialogflow
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
-    print("🔸 JSON recibido de Dialogflow/Postman:", data)
+    print("🔸 JSON recibido:", data)
 
     try:
-        user_input = data["queryResult"]["queryText"]
+        user_input = data.get("queryResult", {}).get("queryText", "")
         respuesta = llamar_a_gemini(user_input)
-        print("🔹 Respuesta cruda de Gemini:", respuesta)
         return jsonify({"fulfillmentText": respuesta})
     except Exception as e:
-        print("❌ Error de conexión o respuesta:", e)
-        print("❌ Cuerpo de respuesta:", data)
+        print("❌ Error en el webhook:", e)
         return jsonify({"fulfillmentText": "Lo siento, hubo un error de conexión con Gemini."})
 
 # Ejecutar servidor Flask
